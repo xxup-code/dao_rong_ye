@@ -4,9 +4,10 @@ A puzzle game where players sort colored liquids into bottles.
 玩家通过倒酒将每种颜色集中到一个瓶子中。
 8 bottles, 5 segments, 7 colors, guaranteed solvable via BFS.
 """
+
 import random
 from collections import deque
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 import pygame
 
@@ -15,8 +16,13 @@ BOTTLE_COUNT: int = 8
 SEGMENTS: int = 5
 COLOR_COUNT: int = 7
 COLORS: List[Tuple[int, int, int]] = [
-    (235, 75, 75), (245, 150, 40), (235, 210, 40),
-    (70, 190, 70), (50, 175, 210), (75, 90, 225), (170, 70, 210),
+    (235, 75, 75),
+    (245, 150, 40),
+    (235, 210, 40),
+    (70, 190, 70),
+    (50, 175, 210),
+    (75, 90, 225),
+    (170, 70, 210),
 ]
 BG_TOP: Tuple[int, int, int] = (245, 242, 235)
 BG_BOT: Tuple[int, int, int] = (225, 220, 210)
@@ -54,8 +60,10 @@ TEXTS: Dict[str, Dict[str, str]] = {
     'level': {'zh': '第 {} 关', 'en': 'Level {}'},
     'win': {'zh': '通过！第 {} 关', 'en': 'Clear! Level {}'},
     'next': {'zh': '按此处继续', 'en': 'Continue'},
-    'hint': {'zh': '点击选瓶 → 点目标瓶倒酒 | R重开 | L语言 | ESC退出',
-             'en': 'Click select → target pour | R retry | L lang | ESC quit'},
+    'hint': {
+        'zh': '点击选瓶 → 点目标瓶倒酒 | R重开 | L语言 | ESC退出',
+        'en': 'Click select → target pour | R retry | L lang | ESC quit',
+    },
     'start': {'zh': '开始游戏', 'en': 'Start Game'},
     'settings': {'zh': '设置', 'en': 'Settings'},
     'exit': {'zh': '退出', 'en': 'Exit'},
@@ -71,6 +79,7 @@ def t(key: str, *args: Any) -> str:
 
 
 # ==================== Puzzle Generation / 谜题生成 ====================
+
 
 def can_solve(bottles: List[Bottle], max_states: int = 50000) -> bool:
     """BFS: check if the puzzle is solvable / 广度优先搜索验证谜题可解性"""
@@ -128,7 +137,7 @@ def generate_puzzle() -> List[Bottle]:
         idx: int = 0
         for i, b in enumerate(filled):
             n: int = SEGMENTS if i < 5 else 3
-            bottles[b] = colors[idx:idx + n]
+            bottles[b] = colors[idx : idx + n]
             idx += n
         random.shuffle(bottles)
         if can_solve(bottles, 50000):
@@ -152,6 +161,7 @@ def generate_fallback() -> List[Bottle]:
 
 # ==================== Game Logic / 游戏逻辑 ====================
 
+
 def is_solved(bottles: List[Bottle]) -> bool:
     """Check if all bottles are pure (single color or empty) / 检查是否全部纯色"""
     return all(len(set(b)) <= 1 for b in bottles)
@@ -174,6 +184,7 @@ def get_top_info(bottle: Bottle) -> Tuple[Optional[int], int, int]:
 
 # ==================== Drawing Helpers / 绘制辅助 ====================
 
+
 def darken(c: Tuple[int, int, int], amount: int = 30) -> Tuple[int, int, int]:
     """Darken a color / 颜色加深"""
     return tuple(max(0, v - amount) for v in c)
@@ -194,15 +205,17 @@ def draw_bg(screen: pygame.Surface) -> None:
         pygame.draw.line(screen, (r, g, b), (0, y), (SW, y))
 
 
-def draw_button(screen: pygame.Surface, rect: pygame.Rect, text: str,
-                hover: bool, font: pygame.font.Font) -> pygame.Rect:
+def draw_button(
+    screen: pygame.Surface, rect: pygame.Rect, text: str, hover: bool, font: pygame.font.Font
+) -> pygame.Rect:
     """Draw a button with hover effect / 绘制带悬停效果的按钮"""
     color: Tuple[int, int, int] = BTN_HOVER if hover else BTN_NORMAL
     pygame.draw.rect(screen, color, rect, border_radius=10)
     pygame.draw.rect(screen, darken(color, 20), rect, 2, border_radius=10)
     ts: pygame.Surface = font.render(text, True, BTN_TEXT)
-    screen.blit(ts, (rect.x + (rect.w - ts.get_width()) // 2,
-                     rect.y + (rect.h - ts.get_height()) // 2))
+    screen.blit(
+        ts, (rect.x + (rect.w - ts.get_width()) // 2, rect.y + (rect.h - ts.get_height()) // 2)
+    )
     return rect
 
 
@@ -224,8 +237,7 @@ def bottle_rect(idx: int) -> pygame.Rect:
     return pygame.Rect(x, y, BOTTLE_W, BODY_H + NECK_H + 2)
 
 
-def draw_bottle(screen: pygame.Surface, bottle: Bottle, x: int, y: int,
-                selected: bool) -> None:
+def draw_bottle(screen: pygame.Surface, bottle: Bottle, x: int, y: int, selected: bool) -> None:
     """Draw a single bottle with colored segments / 绘制带颜色块的单个瓶子"""
     # inner background / 瓶身内部
     inner: pygame.Rect = pygame.Rect(x + 4, y + NECK_H + 4, BOTTLE_W - 8, BODY_H - 4)
@@ -246,26 +258,31 @@ def draw_bottle(screen: pygame.Surface, bottle: Bottle, x: int, y: int,
         seg_rect = seg_rect.clip(clip_rect)  # clamp inside bottle / 钳制在瓶身内
         pygame.draw.rect(screen, COLORS[c], seg_rect, border_radius=5)
         if seg_rect.height > 6:
-            hl: pygame.Rect = pygame.Rect(seg_rect.x + 3, seg_rect.y + 2,
-                                          seg_rect.width - 6, max(3, seg_rect.height // 3))
+            hl: pygame.Rect = pygame.Rect(
+                seg_rect.x + 3, seg_rect.y + 2, seg_rect.width - 6, max(3, seg_rect.height // 3)
+            )
             pygame.draw.rect(screen, lighten(COLORS[c], 35), hl, border_radius=3)
-            sd: pygame.Rect = pygame.Rect(seg_rect.x + 3, seg_rect.y + seg_rect.height - 4,
-                                          seg_rect.width - 6, 3)
+            sd: pygame.Rect = pygame.Rect(
+                seg_rect.x + 3, seg_rect.y + seg_rect.height - 4, seg_rect.width - 6, 3
+            )
             pygame.draw.rect(screen, darken(COLORS[c], 25), sd, border_radius=2)
 
     # glass overlay / 玻璃瓶身
     glass: pygame.Surface = pygame.Surface((BOTTLE_W, BODY_H), pygame.SRCALPHA)
     pygame.draw.rect(glass, BOTTLE_GLASS, pygame.Rect(0, 0, BOTTLE_W, BODY_H), border_radius=10)
-    pygame.draw.rect(glass, (120, 115, 108, 200), pygame.Rect(0, 0, BOTTLE_W, BODY_H),
-                     2, border_radius=10)
+    pygame.draw.rect(
+        glass, (120, 115, 108, 200), pygame.Rect(0, 0, BOTTLE_W, BODY_H), 2, border_radius=10
+    )
     screen.blit(glass, (x, y + NECK_H + 2))
 
     # bottle neck / 瓶口
     neck_x: int = x + (BOTTLE_W - NECK_W) // 2
-    pygame.draw.rect(screen, (180, 175, 165),
-                     pygame.Rect(neck_x, y, NECK_W, NECK_H + 6), border_radius=5)
-    pygame.draw.rect(screen, (120, 115, 108),
-                     pygame.Rect(neck_x, y, NECK_W, NECK_H + 6), 2, border_radius=5)
+    pygame.draw.rect(
+        screen, (180, 175, 165), pygame.Rect(neck_x, y, NECK_W, NECK_H + 6), border_radius=5
+    )
+    pygame.draw.rect(
+        screen, (120, 115, 108), pygame.Rect(neck_x, y, NECK_W, NECK_H + 6), 2, border_radius=5
+    )
 
     # selection highlight / 选中高亮
     if selected:
@@ -275,8 +292,8 @@ def draw_bottle(screen: pygame.Surface, bottle: Bottle, x: int, y: int,
 
 # ==================== Pages / 页面 ====================
 
-def start_page(screen: pygame.Surface, font: pygame.font.Font,
-               big_font: pygame.font.Font) -> str:
+
+def start_page(screen: pygame.Surface, font: pygame.font.Font, big_font: pygame.font.Font) -> str:
     """Start page: Start / Settings / Exit / 开始页面"""
     global LANG
     while True:
@@ -295,16 +312,13 @@ def start_page(screen: pygame.Surface, font: pygame.font.Font,
         hover_sett: bool = pygame.Rect(sx, 320, btn_w, btn_h).collidepoint(mx, my)
         hover_exit: bool = pygame.Rect(sx, 390, btn_w, btn_h).collidepoint(mx, my)
 
-        draw_button(screen, pygame.Rect(sx, 250, btn_w, btn_h),
-                    t('start'), hover_start, big_font)
-        draw_button(screen, pygame.Rect(sx, 320, btn_w, btn_h),
-                    t('settings'), hover_sett, big_font)
-        draw_button(screen, pygame.Rect(sx, 390, btn_w, btn_h),
-                    t('exit'), hover_exit, big_font)
+        draw_button(screen, pygame.Rect(sx, 250, btn_w, btn_h), t('start'), hover_start, big_font)
+        draw_button(screen, pygame.Rect(sx, 320, btn_w, btn_h), t('settings'), hover_sett, big_font)
+        draw_button(screen, pygame.Rect(sx, 390, btn_w, btn_h), t('exit'), hover_exit, big_font)
 
         hint: pygame.Surface = font.render(
-            'L: ' + ('切换语言/Switch Lang', 'Switch Language')[LANG == 'en'],
-            True, TEXT_LIGHT)
+            'L: ' + ('切换语言/Switch Lang', 'Switch Language')[LANG == 'en'], True, TEXT_LIGHT
+        )
         screen.blit(hint, (SW // 2 - hint.get_width() // 2, 530))
 
         pygame.display.flip()
@@ -326,8 +340,9 @@ def start_page(screen: pygame.Surface, font: pygame.font.Font,
                     return 'quit'
 
 
-def settings_page(screen: pygame.Surface, font: pygame.font.Font,
-                  big_font: pygame.font.Font) -> str:
+def settings_page(
+    screen: pygame.Surface, font: pygame.font.Font, big_font: pygame.font.Font
+) -> str:
     """Settings page: language toggle / 设置页面：语言切换"""
     global LANG
     while True:
@@ -344,12 +359,10 @@ def settings_page(screen: pygame.Surface, font: pygame.font.Font,
         sx: int = SW // 2 - btn_w // 2
         lang_text: str = t('lang_setting')
         hover_lang: bool = pygame.Rect(sx, 250, btn_w, btn_h).collidepoint(mx, my)
-        draw_button(screen, pygame.Rect(sx, 250, btn_w, btn_h),
-                    lang_text, hover_lang, big_font)
+        draw_button(screen, pygame.Rect(sx, 250, btn_w, btn_h), lang_text, hover_lang, big_font)
 
         hover_back: bool = pygame.Rect(sx, 390, btn_w, btn_h).collidepoint(mx, my)
-        draw_button(screen, pygame.Rect(sx, 390, btn_w, btn_h),
-                    t('back'), hover_back, big_font)
+        draw_button(screen, pygame.Rect(sx, 390, btn_w, btn_h), t('back'), hover_back, big_font)
 
         pygame.display.flip()
 
@@ -370,8 +383,15 @@ def settings_page(screen: pygame.Surface, font: pygame.font.Font,
 
 # ==================== Game UI / 游戏界面 ====================
 
-def draw_ui(screen: pygame.Surface, bottles: List[Bottle], selected_idx: Optional[int],
-            level: int, font: pygame.font.Font, small_font: pygame.font.Font) -> None:
+
+def draw_ui(
+    screen: pygame.Surface,
+    bottles: List[Bottle],
+    selected_idx: Optional[int],
+    level: int,
+    font: pygame.font.Font,
+    small_font: pygame.font.Font,
+) -> None:
     """Draw the game interface / 绘制游戏主界面"""
     draw_bg(screen)
 
@@ -399,9 +419,14 @@ def draw_ui(screen: pygame.Surface, bottles: List[Bottle], selected_idx: Optiona
     screen.blit(hint, (SW // 2 - hint.get_width() // 2, SH - 28))
 
 
-def draw_win_overlay(screen: pygame.Surface, font: pygame.font.Font,
-                     small_font: pygame.font.Font, level: int,
-                     mx: int, my: int) -> Tuple[pygame.Rect, bool]:
+def draw_win_overlay(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    small_font: pygame.font.Font,
+    level: int,
+    mx: int,
+    my: int,
+) -> Tuple[pygame.Rect, bool]:
     """Draw win dialog with 'continue' button / 绘制通关弹窗"""
     overlay: pygame.Surface = pygame.Surface((SW, SH), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 175))
@@ -433,8 +458,8 @@ def draw_win_overlay(screen: pygame.Surface, font: pygame.font.Font,
 
 # ==================== Game Loop / 游戏主循环 ====================
 
-def game_loop(screen: pygame.Surface, font: pygame.font.Font,
-              small_font: pygame.font.Font) -> str:
+
+def game_loop(screen: pygame.Surface, font: pygame.font.Font, small_font: pygame.font.Font) -> str:
     """Main game loop / 游戏主循环"""
     global LANG
     clock: pygame.time.Clock = pygame.time.Clock()
@@ -520,6 +545,7 @@ def game_loop(screen: pygame.Surface, font: pygame.font.Font,
 
 
 # ==================== Entry Point / 入口 ====================
+
 
 def main() -> None:
     """Application entry point / 程序入口"""
