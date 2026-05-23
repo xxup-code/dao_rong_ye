@@ -4,20 +4,25 @@
 
 基于 pygame 开发的水排序谜题游戏。8 个瓶子，5 层刻度，7 种颜色，玩家通过点击选择瓶子并将顶层颜色倒入匹配颜色的目标瓶子中，最终使每个瓶子只含一种颜色。
 
-## 环境依赖
+## 环境依赖 / Requirements
 
-| 依赖 | 版本 |
-|------|------|
-| Python | >= 3.8 |
+| Dependency | Version |
+|------------|---------|
+| Python | >= 3.10 |
 | pygame | >= 2.0 |
+| uv | latest |
 
-安装：`pip install pygame`
-
-## 运行方式
+## 运行方式 / How to Run
 
 ```bash
+# 安装 uv（如未安装）/ Install uv if needed
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# 安装依赖并运行 / Install deps and run
 cd dao_rong_ye
-python water_sort.py
+uv sync
+uv run python water_sort.py
+```
 ```
 
 ## 游戏规则

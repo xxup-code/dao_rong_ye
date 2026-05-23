@@ -1,0 +1,16 @@
+[project]
+name = "water-sort-puzzle"
+version = "1.0.0"
+description = "Water Sort Puzzle - A puzzle game built with pygame"
+requires-python = ">=3.10"
+dependencies = ["pygame>=2.0"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.format]
+quote-style = "single"

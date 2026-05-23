@@ -1,45 +1,55 @@
+"""Water Sort Puzzle / 水排序谜题
+
+A puzzle game where players sort colored liquids into bottles.
+玩家通过倒酒将每种颜色集中到一个瓶子中。
+8 bottles, 5 segments, 7 colors, guaranteed solvable via BFS.
 """
-水排序谜题 Water Sort Puzzle
-"""
-import sys
-sys.stdout.reconfigure(encoding='utf-8')
-import pygame
 import random
 from collections import deque
+from typing import List, Optional, Tuple, Dict, Any
 
-# ==================== 常量 ====================
-BOTTLE_COUNT = 8
-SEGMENTS = 5
-COLOR_COUNT = 7
-COLORS = [
+import pygame
+
+# ==================== Constants / 常量 ====================
+BOTTLE_COUNT: int = 8
+SEGMENTS: int = 5
+COLOR_COUNT: int = 7
+COLORS: List[Tuple[int, int, int]] = [
     (235, 75, 75), (245, 150, 40), (235, 210, 40),
     (70, 190, 70), (50, 175, 210), (75, 90, 225), (170, 70, 210),
 ]
-BG_TOP = (245, 242, 235)
-BG_BOT = (225, 220, 210)
-BOTTLE_GLASS = (200, 195, 185, 160)
-PANEL_COLOR = (255, 252, 248)
-TEXT_DARK = (55, 45, 35)
-TEXT_LIGHT = (140, 130, 120)
-GOLD = (230, 180, 60)
-BTN_NORMAL = (90, 140, 200)
-BTN_HOVER = (110, 160, 220)
-BTN_TEXT = (255, 255, 255)
+BG_TOP: Tuple[int, int, int] = (245, 242, 235)
+BG_BOT: Tuple[int, int, int] = (225, 220, 210)
+BOTTLE_GLASS: Tuple[int, int, int, int] = (200, 195, 185, 160)
+PANEL_COLOR: Tuple[int, int, int] = (255, 252, 248)
+TEXT_DARK: Tuple[int, int, int] = (55, 45, 35)
+TEXT_LIGHT: Tuple[int, int, int] = (140, 130, 120)
+GOLD: Tuple[int, int, int] = (230, 180, 60)
+BTN_NORMAL: Tuple[int, int, int] = (90, 140, 200)
+BTN_HOVER: Tuple[int, int, int] = (110, 160, 220)
+BTN_TEXT: Tuple[int, int, int] = (255, 255, 255)
 
-SW, SH = 820, 640
-BOTTLE_W, BODY_H = 78, 240
-SEG_H = BODY_H // SEGMENTS
-NECK_W, NECK_H = 28, 28
-ROW1_Y, ROW2_Y = 75, 355
+SW: int = 820  # screen width / 屏幕宽度
+SH: int = 640  # screen height / 屏幕高度
+BOTTLE_W: int = 78
+BODY_H: int = 240
+SEG_H: int = BODY_H // SEGMENTS
+NECK_W: int = 28
+NECK_H: int = 28
+ROW1_Y: int = 75
+ROW2_Y: int = 355
 
-# SDL scancodes (硬件级，不受IME影响)
-SC_L = 15
-SC_R = 21
-SC_ESCAPE = 41
+# SDL scancodes — hardware-level, immune to IME / 硬件扫描码，不受输入法影响
+SC_L: int = 15
+SC_R: int = 21
+SC_ESCAPE: int = 41
 
-# ==================== 国际化 ====================
-LANG = 'zh'
-TEXTS = {
+# Bottle type: list of color indices from bottom to top / 瓶子类型：从底到顶的颜色索引列表
+Bottle = List[int]
+
+# ==================== I18n / 国际化 ====================
+LANG: str = 'zh'
+TEXTS: Dict[str, Dict[str, str]] = {
     'title': {'zh': '水排序谜题', 'en': 'Water Sort Puzzle'},
     'level': {'zh': '第 {} 关', 'en': 'Level {}'},
     'win': {'zh': '通过！第 {} 关', 'en': 'Clear! Level {}'},
@@ -51,39 +61,49 @@ TEXTS = {
     'exit': {'zh': '退出', 'en': 'Exit'},
     'lang_setting': {'zh': '语言 / Language: 中文', 'en': 'Language: English'},
     'back': {'zh': '返回', 'en': 'Back'},
-    'game_over': {'zh': '通关！', 'en': 'You Win!'},
 }
-def t(key, *args):
-    s = TEXTS.get(key, {}).get(LANG, key)
+
+
+def t(key: str, *args: Any) -> str:
+    """Get localized text / 获取本地化文本"""
+    s: str = TEXTS.get(key, {}).get(LANG, key)
     return s.format(*args) if args else s
 
 
-# ==================== 谜题生成 ====================
+# ==================== Puzzle Generation / 谜题生成 ====================
 
-def can_solve(bottles, max_states=50000):
-    start = tuple(tuple(b) for b in bottles)
+def can_solve(bottles: List[Bottle], max_states: int = 50000) -> bool:
+    """BFS: check if the puzzle is solvable / 广度优先搜索验证谜题可解性"""
+    start: Tuple[Tuple[int, ...], ...] = tuple(tuple(b) for b in bottles)
     if all(len(set(b)) <= 1 for b in bottles):
         return True
-    visited = {start}
-    q = deque([start])
+    visited: set = {start}
+    q: deque = deque([start])
     while q and len(visited) < max_states:
-        cur = [list(b) for b in q.popleft()]
+        cur: List[List[int]] = [list(b) for b in q.popleft()]
         for src in range(BOTTLE_COUNT):
-            if not cur[src]: continue
-            sc = cur[src][-1]; sc_n = 0
+            if not cur[src]:
+                continue
+            sc: int = cur[src][-1]  # top color / 顶层颜色
+            sc_n: int = 0
             for i in range(len(cur[src]) - 1, -1, -1):
-                if cur[src][i] == sc: sc_n += 1
-                else: break
+                if cur[src][i] == sc:
+                    sc_n += 1
+                else:
+                    break
             for dst in range(BOTTLE_COUNT):
-                if src == dst: continue
-                if len(cur[dst]) >= SEGMENTS: continue
-                if cur[dst] and cur[dst][-1] != sc: continue
-                space = SEGMENTS - len(cur[dst])
-                pn = min(sc_n, space)
-                nb = [list(b) for b in cur]
+                if src == dst:
+                    continue
+                if len(cur[dst]) >= SEGMENTS:
+                    continue
+                if cur[dst] and cur[dst][-1] != sc:  # color mismatch / 颜色不匹配
+                    continue
+                space: int = SEGMENTS - len(cur[dst])
+                pn: int = min(sc_n, space)
+                nb: List[List[int]] = [list(b) for b in cur]
                 nb[dst].extend([sc] * pn)
                 del nb[src][-pn:]
-                k = tuple(tuple(b) for b in nb)
+                k: Tuple[Tuple[int, ...], ...] = tuple(tuple(b) for b in nb)
                 if k not in visited:
                     if all(len(set(b)) <= 1 for b in nb):
                         return True
@@ -92,17 +112,22 @@ def can_solve(bottles, max_states=50000):
     return False
 
 
-def generate_puzzle():
+def generate_puzzle() -> List[Bottle]:
+    """Generate a guaranteed-solvable puzzle / 生成保证有解的谜题
+
+    7 colors × 4 units = 28 units, spread across 6 bottles (5 full + 1 partial),
+    leaving 2 empty bottles for buffer space.
+    """
     for _ in range(200):
-        bottles = [[] for _ in range(BOTTLE_COUNT)]
-        colors = []
+        bottles: List[Bottle] = [[] for _ in range(BOTTLE_COUNT)]
+        colors: List[int] = []
         for c in range(COLOR_COUNT):
             colors.extend([c] * 4)
         random.shuffle(colors)
-        filled = random.sample(range(BOTTLE_COUNT), 6)
-        idx = 0
+        filled: List[int] = random.sample(range(BOTTLE_COUNT), 6)
+        idx: int = 0
         for i, b in enumerate(filled):
-            n = SEGMENTS if i < 5 else 3
+            n: int = SEGMENTS if i < 5 else 3
             bottles[b] = colors[idx:idx + n]
             idx += n
         random.shuffle(bottles)
@@ -111,10 +136,13 @@ def generate_puzzle():
     return generate_fallback()
 
 
-def generate_fallback():
-    bottles = [[] for _ in range(BOTTLE_COUNT)]
-    perm = list(range(COLOR_COUNT)); random.shuffle(perm)
-    for i in range(4): bottles[i] = [perm[i]] * 4
+def generate_fallback() -> List[Bottle]:
+    """Simple fallback puzzle / 简单回退谜题"""
+    bottles: List[Bottle] = [[] for _ in range(BOTTLE_COUNT)]
+    perm: List[int] = list(range(COLOR_COUNT))
+    random.shuffle(perm)
+    for i in range(4):
+        bottles[i] = [perm[i]] * 4
     bottles[4] = [perm[4], perm[5], perm[6], perm[4]]
     bottles[5] = [perm[5]] * 4
     bottles[6] = [perm[6]] * 3
@@ -122,123 +150,161 @@ def generate_fallback():
     return bottles
 
 
-# ==================== 游戏逻辑 ====================
+# ==================== Game Logic / 游戏逻辑 ====================
 
-def is_solved(bottles):
+def is_solved(bottles: List[Bottle]) -> bool:
+    """Check if all bottles are pure (single color or empty) / 检查是否全部纯色"""
     return all(len(set(b)) <= 1 for b in bottles)
 
 
-def get_top_info(bottle):
+def get_top_info(bottle: Bottle) -> Tuple[Optional[int], int, int]:
+    """Return (top_color, same_color_count, empty_space) / 返回(顶层颜色, 同色数, 空位)"""
     if not bottle:
         return None, 0, SEGMENTS
-    top = bottle[-1]
-    count = 0
+    top: int = bottle[-1]
+    count: int = 0
     for i in range(len(bottle) - 1, -1, -1):
-        if bottle[i] == top: count += 1
-        else: break
-    space = SEGMENTS - len(bottle)
+        if bottle[i] == top:
+            count += 1
+        else:
+            break
+    space: int = SEGMENTS - len(bottle)
     return top, count, space
 
 
-# ==================== 绘制辅助 ====================
+# ==================== Drawing Helpers / 绘制辅助 ====================
 
-def darken(c, amount=30):
+def darken(c: Tuple[int, int, int], amount: int = 30) -> Tuple[int, int, int]:
+    """Darken a color / 颜色加深"""
     return tuple(max(0, v - amount) for v in c)
 
-def lighten(c, amount=30):
+
+def lighten(c: Tuple[int, int, int], amount: int = 30) -> Tuple[int, int, int]:
+    """Lighten a color / 颜色提亮"""
     return tuple(min(255, v + amount) for v in c)
 
-def draw_bg(screen):
+
+def draw_bg(screen: pygame.Surface) -> None:
+    """Draw gradient background / 绘制渐变背景"""
     for y in range(SH):
-        t_ = y / SH
-        r = int(BG_TOP[0] * (1 - t_) + BG_BOT[0] * t_)
-        g = int(BG_TOP[1] * (1 - t_) + BG_BOT[1] * t_)
-        b = int(BG_TOP[2] * (1 - t_) + BG_BOT[2] * t_)
+        t_val: float = y / SH
+        r: int = int(BG_TOP[0] * (1 - t_val) + BG_BOT[0] * t_val)
+        g: int = int(BG_TOP[1] * (1 - t_val) + BG_BOT[1] * t_val)
+        b: int = int(BG_TOP[2] * (1 - t_val) + BG_BOT[2] * t_val)
         pygame.draw.line(screen, (r, g, b), (0, y), (SW, y))
 
 
-def draw_button(screen, rect, text, hover, font):
-    color = BTN_HOVER if hover else BTN_NORMAL
+def draw_button(screen: pygame.Surface, rect: pygame.Rect, text: str,
+                hover: bool, font: pygame.font.Font) -> pygame.Rect:
+    """Draw a button with hover effect / 绘制带悬停效果的按钮"""
+    color: Tuple[int, int, int] = BTN_HOVER if hover else BTN_NORMAL
     pygame.draw.rect(screen, color, rect, border_radius=10)
     pygame.draw.rect(screen, darken(color, 20), rect, 2, border_radius=10)
-    ts = font.render(text, True, BTN_TEXT)
+    ts: pygame.Surface = font.render(text, True, BTN_TEXT)
     screen.blit(ts, (rect.x + (rect.w - ts.get_width()) // 2,
                      rect.y + (rect.h - ts.get_height()) // 2))
     return rect
 
 
-def draw_bottle(screen, bottle, x, y, selected):
-    inner = pygame.Rect(x + 4, y + NECK_H + 4, BOTTLE_W - 8, BODY_H - 4)
+def bottle_center(idx: int) -> Tuple[int, int]:
+    """Get bottle mouth center coordinates / 获取瓶子瓶口中心坐标"""
+    row: int = idx // 4
+    col: int = idx % 4
+    x: int = 55 + col * 192 + BOTTLE_W // 2
+    y: int = (ROW1_Y if row == 0 else ROW2_Y) + NECK_H // 2
+    return x, y
+
+
+def bottle_rect(idx: int) -> pygame.Rect:
+    """Get bottle bounding rectangle / 获取瓶子矩形区域"""
+    row: int = idx // 4
+    col: int = idx % 4
+    x: int = 55 + col * 192
+    y: int = ROW1_Y if row == 0 else ROW2_Y
+    return pygame.Rect(x, y, BOTTLE_W, BODY_H + NECK_H + 2)
+
+
+def draw_bottle(screen: pygame.Surface, bottle: Bottle, x: int, y: int,
+                selected: bool) -> None:
+    """Draw a single bottle with colored segments / 绘制带颜色块的单个瓶子"""
+    # inner background / 瓶身内部
+    inner: pygame.Rect = pygame.Rect(x + 4, y + NECK_H + 4, BOTTLE_W - 8, BODY_H - 4)
     pygame.draw.rect(screen, (195, 190, 180), inner, border_radius=6)
 
+    # scale marks / 刻度线
     for i in range(1, SEGMENTS):
-        ly = y + NECK_H + 2 + i * SEG_H
+        ly: int = y + NECK_H + 2 + i * SEG_H
         pygame.draw.line(screen, (170, 165, 155), (x + 6, ly), (x + BOTTLE_W - 6, ly), 1)
 
-    body_bottom = y + NECK_H + 2 + BODY_H - 2
-    clip_rect = pygame.Rect(x + 4, y + NECK_H + 4, BOTTLE_W - 8, BODY_H - 4)
+    # color blocks from bottom to top / 颜色块从底部向上
+    body_bottom: int = y + NECK_H + 2 + BODY_H - 2
+    clip_rect: pygame.Rect = pygame.Rect(x + 4, y + NECK_H + 4, BOTTLE_W - 8, BODY_H - 4)
     for i, c in enumerate(bottle):
-        seg_top = body_bottom - (i + 1) * SEG_H
+        seg_top: int = body_bottom - (i + 1) * SEG_H
         seg_top = max(seg_top, y + NECK_H + 6)
-        seg_rect = pygame.Rect(x + 6, seg_top + 2, BOTTLE_W - 12, SEG_H - 3)
-        seg_rect = seg_rect.clip(clip_rect)
+        seg_rect: pygame.Rect = pygame.Rect(x + 6, seg_top + 2, BOTTLE_W - 12, SEG_H - 3)
+        seg_rect = seg_rect.clip(clip_rect)  # clamp inside bottle / 钳制在瓶身内
         pygame.draw.rect(screen, COLORS[c], seg_rect, border_radius=5)
         if seg_rect.height > 6:
-            hl = pygame.Rect(seg_rect.x + 3, seg_rect.y + 2,
-                             seg_rect.width - 6, max(3, seg_rect.height // 3))
+            hl: pygame.Rect = pygame.Rect(seg_rect.x + 3, seg_rect.y + 2,
+                                          seg_rect.width - 6, max(3, seg_rect.height // 3))
             pygame.draw.rect(screen, lighten(COLORS[c], 35), hl, border_radius=3)
-            sd = pygame.Rect(seg_rect.x + 3, seg_rect.y + seg_rect.height - 4,
-                             seg_rect.width - 6, 3)
+            sd: pygame.Rect = pygame.Rect(seg_rect.x + 3, seg_rect.y + seg_rect.height - 4,
+                                          seg_rect.width - 6, 3)
             pygame.draw.rect(screen, darken(COLORS[c], 25), sd, border_radius=2)
 
-    glass = pygame.Surface((BOTTLE_W, BODY_H), pygame.SRCALPHA)
-    pygame.draw.rect(glass, (200, 195, 188, 70),
-                     pygame.Rect(0, 0, BOTTLE_W, BODY_H), border_radius=10)
-    pygame.draw.rect(glass, (120, 115, 108, 200),
-                     pygame.Rect(0, 0, BOTTLE_W, BODY_H), 2, border_radius=10)
+    # glass overlay / 玻璃瓶身
+    glass: pygame.Surface = pygame.Surface((BOTTLE_W, BODY_H), pygame.SRCALPHA)
+    pygame.draw.rect(glass, BOTTLE_GLASS, pygame.Rect(0, 0, BOTTLE_W, BODY_H), border_radius=10)
+    pygame.draw.rect(glass, (120, 115, 108, 200), pygame.Rect(0, 0, BOTTLE_W, BODY_H),
+                     2, border_radius=10)
     screen.blit(glass, (x, y + NECK_H + 2))
 
-    neck_x = x + (BOTTLE_W - NECK_W) // 2
+    # bottle neck / 瓶口
+    neck_x: int = x + (BOTTLE_W - NECK_W) // 2
     pygame.draw.rect(screen, (180, 175, 165),
                      pygame.Rect(neck_x, y, NECK_W, NECK_H + 6), border_radius=5)
     pygame.draw.rect(screen, (120, 115, 108),
                      pygame.Rect(neck_x, y, NECK_W, NECK_H + 6), 2, border_radius=5)
 
+    # selection highlight / 选中高亮
     if selected:
-        hl = pygame.Rect(x - 4, y - 4, BOTTLE_W + 8, BODY_H + NECK_H + 10)
+        hl: pygame.Rect = pygame.Rect(x - 4, y - 4, BOTTLE_W + 8, BODY_H + NECK_H + 10)
         pygame.draw.rect(screen, GOLD, hl, 3, border_radius=14)
 
 
-# ==================== 页面 ====================
+# ==================== Pages / 页面 ====================
 
-def start_page(screen, font, big_font):
-    """开始页面：开始游戏 / 设置 / 退出"""
+def start_page(screen: pygame.Surface, font: pygame.font.Font,
+               big_font: pygame.font.Font) -> str:
+    """Start page: Start / Settings / Exit / 开始页面"""
     global LANG
-    btns = {}
     while True:
+        mx: int
+        my: int
         mx, my = pygame.mouse.get_pos()
         draw_bg(screen)
 
-        # 标题
-        ts = big_font.render(t('title'), True, TEXT_DARK)
+        ts: pygame.Surface = big_font.render(t('title'), True, TEXT_DARK)
         screen.blit(ts, (SW // 2 - ts.get_width() // 2, 130))
 
-        btn_w, btn_h = 220, 52
-        sx = SW // 2 - btn_w // 2
-        hover_start = pygame.Rect(sx, 250, btn_w, btn_h).collidepoint(mx, my)
-        hover_sett = pygame.Rect(sx, 320, btn_w, btn_h).collidepoint(mx, my)
-        hover_exit = pygame.Rect(sx, 390, btn_w, btn_h).collidepoint(mx, my)
+        btn_w: int = 220
+        btn_h: int = 52
+        sx: int = SW // 2 - btn_w // 2
+        hover_start: bool = pygame.Rect(sx, 250, btn_w, btn_h).collidepoint(mx, my)
+        hover_sett: bool = pygame.Rect(sx, 320, btn_w, btn_h).collidepoint(mx, my)
+        hover_exit: bool = pygame.Rect(sx, 390, btn_w, btn_h).collidepoint(mx, my)
 
-        btns['start'] = draw_button(screen, pygame.Rect(sx, 250, btn_w, btn_h),
-                                     t('start'), hover_start, big_font)
-        btns['settings'] = draw_button(screen, pygame.Rect(sx, 320, btn_w, btn_h),
-                                        t('settings'), hover_sett, big_font)
-        btns['exit'] = draw_button(screen, pygame.Rect(sx, 390, btn_w, btn_h),
-                                    t('exit'), hover_exit, big_font)
+        draw_button(screen, pygame.Rect(sx, 250, btn_w, btn_h),
+                    t('start'), hover_start, big_font)
+        draw_button(screen, pygame.Rect(sx, 320, btn_w, btn_h),
+                    t('settings'), hover_sett, big_font)
+        draw_button(screen, pygame.Rect(sx, 390, btn_w, btn_h),
+                    t('exit'), hover_exit, big_font)
 
-        # 操作提示
-        hint = font.render('L: ' + ('切换语言/Switch Lang', 'Switch Language')[LANG == 'en'],
-                           True, TEXT_LIGHT)
+        hint: pygame.Surface = font.render(
+            'L: ' + ('切换语言/Switch Lang', 'Switch Language')[LANG == 'en'],
+            True, TEXT_LIGHT)
         screen.blit(hint, (SW // 2 - hint.get_width() // 2, 530))
 
         pygame.display.flip()
@@ -260,25 +326,28 @@ def start_page(screen, font, big_font):
                     return 'quit'
 
 
-def settings_page(screen, font, big_font):
-    """设置页面：语言切换"""
+def settings_page(screen: pygame.Surface, font: pygame.font.Font,
+                  big_font: pygame.font.Font) -> str:
+    """Settings page: language toggle / 设置页面：语言切换"""
     global LANG
     while True:
+        mx: int
+        my: int
         mx, my = pygame.mouse.get_pos()
         draw_bg(screen)
 
-        ts = big_font.render(t('settings'), True, TEXT_DARK)
+        ts: pygame.Surface = big_font.render(t('settings'), True, TEXT_DARK)
         screen.blit(ts, (SW // 2 - ts.get_width() // 2, 130))
 
-        # 语言设置按钮
-        btn_w, btn_h = 340, 52
-        sx = SW // 2 - btn_w // 2
-        lang_text = t('lang_setting')
-        hover_lang = pygame.Rect(sx, 250, btn_w, btn_h).collidepoint(mx, my)
+        btn_w: int = 340
+        btn_h: int = 52
+        sx: int = SW // 2 - btn_w // 2
+        lang_text: str = t('lang_setting')
+        hover_lang: bool = pygame.Rect(sx, 250, btn_w, btn_h).collidepoint(mx, my)
         draw_button(screen, pygame.Rect(sx, 250, btn_w, btn_h),
                     lang_text, hover_lang, big_font)
 
-        hover_back = pygame.Rect(sx, 390, btn_w, btn_h).collidepoint(mx, my)
+        hover_back: bool = pygame.Rect(sx, 390, btn_w, btn_h).collidepoint(mx, my)
         draw_button(screen, pygame.Rect(sx, 390, btn_w, btn_h),
                     t('back'), hover_back, big_font)
 
@@ -299,211 +368,86 @@ def settings_page(screen, font, big_font):
                     return 'menu'
 
 
-# ==================== 游戏主循环 ====================
+# ==================== Game UI / 游戏界面 ====================
 
-def draw_ui(screen, bottles, selected_idx, level, font, small_font):
+def draw_ui(screen: pygame.Surface, bottles: List[Bottle], selected_idx: Optional[int],
+            level: int, font: pygame.font.Font, small_font: pygame.font.Font) -> None:
+    """Draw the game interface / 绘制游戏主界面"""
     draw_bg(screen)
-    # 顶部面板
-    panel = pygame.Rect(0, 0, SW, 52)
+
+    # top panel / 顶部面板
+    panel: pygame.Rect = pygame.Rect(0, 0, SW, 52)
     pygame.draw.rect(screen, PANEL_COLOR, panel)
     pygame.draw.line(screen, (210, 205, 195), (0, 52), (SW, 52), 1)
-    title = font.render(t('title'), True, TEXT_DARK)
-    screen.blit(title, (SW // 2 - title.get_width() // 2, 14))
-    lvl_text = small_font.render(t('level', level), True, TEXT_LIGHT)
+    title_surf: pygame.Surface = font.render(t('title'), True, TEXT_DARK)
+    screen.blit(title_surf, (SW // 2 - title_surf.get_width() // 2, 14))
+    lvl_text: pygame.Surface = small_font.render(t('level', level), True, TEXT_LIGHT)
     screen.blit(lvl_text, (14, 18))
-    lang_hint = small_font.render(f'[{LANG.upper()}]', True, TEXT_LIGHT)
+    lang_hint: pygame.Surface = small_font.render(f'[{LANG.upper()}]', True, TEXT_LIGHT)
     screen.blit(lang_hint, (SW - 55, 18))
 
+    # draw all bottles / 绘制所有瓶子
     for i in range(BOTTLE_COUNT):
-        row, col = i // 4, i % 4
-        x, y = 55 + col * 192, ROW1_Y if row == 0 else ROW2_Y
+        row: int = i // 4
+        col: int = i % 4
+        x: int = 55 + col * 192
+        y: int = ROW1_Y if row == 0 else ROW2_Y
         draw_bottle(screen, bottles[i], x, y, i == selected_idx)
 
-    hint = small_font.render(t('hint'), True, TEXT_LIGHT)
+    # bottom hint / 底部提示
+    hint: pygame.Surface = small_font.render(t('hint'), True, TEXT_LIGHT)
     screen.blit(hint, (SW // 2 - hint.get_width() // 2, SH - 28))
 
 
-def bottle_center(idx):
-    """返回瓶子瓶口中心坐标"""
-    row, col = idx // 4, idx % 4
-    x = 55 + col * 192 + BOTTLE_W // 2
-    y = (ROW1_Y if row == 0 else ROW2_Y) + NECK_H // 2
-    return x, y
-
-
-def draw_bottle_surface(bottle, selected=False):
-    """将瓶子渲染到独立 Surface"""
-    w, h = BOTTLE_W + 12, BODY_H + NECK_H + 12
-    surf = pygame.Surface((w, h), pygame.SRCALPHA)
-    ox, oy = 6, 6
-
-    inner = pygame.Rect(ox + 4, oy + NECK_H + 4, BOTTLE_W - 8, BODY_H - 4)
-    pygame.draw.rect(surf, (195, 190, 180), inner, border_radius=6)
-
-    for i in range(1, SEGMENTS):
-        ly = oy + NECK_H + 2 + i * SEG_H
-        pygame.draw.line(surf, (170, 165, 155), (ox + 6, ly), (ox + BOTTLE_W - 6, ly), 1)
-
-    body_bottom = oy + NECK_H + 2 + BODY_H - 2
-    clip_rect = pygame.Rect(ox + 4, oy + NECK_H + 4, BOTTLE_W - 8, BODY_H - 4)
-    for i, c in enumerate(bottle):
-        seg_top = body_bottom - (i + 1) * SEG_H
-        seg_top = max(seg_top, oy + NECK_H + 6)
-        seg_rect = pygame.Rect(ox + 6, seg_top + 2, BOTTLE_W - 12, SEG_H - 3)
-        seg_rect = seg_rect.clip(clip_rect)
-        pygame.draw.rect(surf, COLORS[c], seg_rect, border_radius=5)
-        if seg_rect.height > 6:
-            hl = pygame.Rect(seg_rect.x + 3, seg_rect.y + 2,
-                             seg_rect.width - 6, max(3, seg_rect.height // 3))
-            pygame.draw.rect(surf, lighten(COLORS[c], 35), hl, border_radius=3)
-            sd = pygame.Rect(seg_rect.x + 3, seg_rect.y + seg_rect.height - 4,
-                             seg_rect.width - 6, 3)
-            pygame.draw.rect(surf, darken(COLORS[c], 25), sd, border_radius=2)
-
-    gx, gy = ox, oy + NECK_H + 2
-    glass = pygame.Surface((BOTTLE_W, BODY_H), pygame.SRCALPHA)
-    pygame.draw.rect(glass, (200, 195, 188, 70), (0, 0, BOTTLE_W, BODY_H), border_radius=10)
-    pygame.draw.rect(glass, (120, 115, 108, 200), (0, 0, BOTTLE_W, BODY_H), 2, border_radius=10)
-    surf.blit(glass, (gx, gy))
-
-    neck_x = ox + (BOTTLE_W - NECK_W) // 2
-    pygame.draw.rect(surf, (180, 175, 165),
-                     (neck_x, oy, NECK_W, NECK_H + 6), border_radius=5)
-    pygame.draw.rect(surf, (120, 115, 108),
-                     (neck_x, oy, NECK_W, NECK_H + 6), 2, border_radius=5)
-
-    if selected:
-        hl = pygame.Rect(ox - 1, oy - 1, BOTTLE_W + 6, BODY_H + NECK_H + 6)
-        pygame.draw.rect(surf, GOLD, hl, 3, border_radius=14)
-
-    return surf
-
-
-def bottle_rect(idx):
-    """返回瓶子的屏幕矩形"""
-    row, col = idx // 4, idx % 4
-    x = 55 + col * 192
-    y = ROW1_Y if row == 0 else ROW2_Y
-    return pygame.Rect(x, y, BOTTLE_W, BODY_H + NECK_H + 2)
-
-
-def draw_pour_anim(screen, anim):
-    """倾倒动画：瓶子倾斜，瓶口对瓶口倒液"""
-    t = anim['frame'] / anim['max_frames']
-    src, dst = anim['src'], anim['dst']
-    color = COLORS[anim['color']]
-    n = anim['count']
-
-    srect = bottle_rect(src)
-    drect = bottle_rect(dst)
-    sx0 = srect.x + BOTTLE_W // 2
-    sy0 = srect.y + NECK_H // 2
-    dx = drect.x + BOTTLE_W // 2
-    dy = drect.y + NECK_H // 2
-
-    side = 1 if dx < SW // 2 else -1
-    tilt_angle = 55
-    hover_x = dx + side * 80
-    hover_y = dy - 50
-
-    if t < 0.25:
-        lift = t / 0.25
-        sx, sy = sx0, sy0 - lift * 50
-        tilt = 0; pour_progress = 0.0
-    elif t < 0.50:
-        move = (t - 0.25) / 0.25
-        ease = move * move * (3 - 2 * move)
-        sx = sx0 + (hover_x - sx0) * ease
-        sy = (sy0 - 50) + (hover_y - (sy0 - 50)) * ease
-        tilt = tilt_angle * ease * (-1 if side > 0 else 1)
-        pour_progress = 0.0
-    elif t < 0.85:
-        pour = (t - 0.50) / 0.35
-        ease = pour * pour * (3 - 2 * pour)
-        sx, sy = hover_x, hover_y
-        tilt = tilt_angle * (-1 if side > 0 else 1)
-        pour_progress = ease
-    else:
-        back = (t - 0.85) / 0.15
-        ease = back * back * (3 - 2 * back)
-        sx = hover_x + (sx0 - hover_x) * ease
-        sy = hover_y + (sy0 - hover_y) * ease
-        tilt = tilt_angle * (-1 if side > 0 else 1) * (1 - ease)
-        pour_progress = 1.0
-
-    transferred = int(n * pour_progress)
-    transferred = min(transferred, n)
-    if transferred > 0:
-        src_vis = anim['src_before'][:-transferred]
-    else:
-        src_vis = list(anim['src_before'])
-    dst_vis = anim['dst_before'] + [anim['color']] * transferred
-
-    draw_bottle(screen, dst_vis, drect.x, drect.y, False)
-
-    surf = draw_bottle_surface(src_vis, False)
-    if abs(tilt) > 1:
-        surf = pygame.transform.rotate(surf, tilt)
-    r = surf.get_rect()
-    screen.blit(surf, (sx - r.width // 2, sy - (6 + NECK_H // 2)))
-
-    if pour_progress > 0.02:
-        flow = min(1.0, pour_progress * 3)
-        n_pts = 30
-        for i in range(n_pts):
-            p = i / (n_pts - 1)
-            bx = sx + (dx - sx) * p + random.uniform(-3, 3) * (1 - p * 0.5)
-            by = sy + (dy - sy) * p + 4 * p * (1 - p) * 20
-            w = max(1.5, (4 - p * 2) * flow)
-            pygame.draw.circle(screen, lighten(color, random.randint(0, 30)),
-                               (int(bx), int(by)), int(w))
-        for _ in range(int(5 * flow)):
-            rx = sx + random.uniform(-4, 4)
-            ry = sy + random.uniform(2, 12) * flow
-            pygame.draw.circle(screen, lighten(color, 30),
-                               (int(rx), int(ry)), int(random.uniform(1, 3)))
-        for _ in range(int(3 * flow)):
-            rx = dx + random.uniform(-3, 3)
-            ry = dy + random.uniform(2, 8) * flow
-            pygame.draw.circle(screen, lighten(color, 50),
-                               (int(rx), int(ry)), int(random.uniform(1, 3)))
-
-
-
-def draw_win_overlay(screen, font, small_font, level, mx, my):
-    overlay = pygame.Surface((SW, SH), pygame.SRCALPHA)
+def draw_win_overlay(screen: pygame.Surface, font: pygame.font.Font,
+                     small_font: pygame.font.Font, level: int,
+                     mx: int, my: int) -> Tuple[pygame.Rect, bool]:
+    """Draw win dialog with 'continue' button / 绘制通关弹窗"""
+    overlay: pygame.Surface = pygame.Surface((SW, SH), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 175))
     screen.blit(overlay, (0, 0))
-    bw, bh = 380, 200
-    bx = SW // 2 - bw // 2; by = SH // 2 - bh // 2
+
+    bw: int = 380
+    bh: int = 200
+    bx: int = SW // 2 - bw // 2
+    by: int = SH // 2 - bh // 2
     pygame.draw.rect(screen, (255, 250, 240), (bx, by, bw, bh), border_radius=16)
     pygame.draw.rect(screen, GOLD, (bx, by, bw, bh), 3, border_radius=16)
-    wt = font.render(t('win', level), True, TEXT_DARK)
+
+    wt: pygame.Surface = font.render(t('win', level), True, TEXT_DARK)
     screen.blit(wt, (SW // 2 - wt.get_width() // 2, SH // 2 - 30))
 
-    # 下一关按钮
-    nw, nh = 180, 44
-    nx = SW // 2 - nw // 2
-    ny = SH // 2 + 15
-    next_btn = pygame.Rect(nx, ny, nw, nh)
-    hover = next_btn.collidepoint(mx, my)
-    color = BTN_HOVER if hover else BTN_NORMAL
-    pygame.draw.rect(screen, color, next_btn, border_radius=8)
-    nt = small_font.render(t('next'), True, BTN_TEXT)
+    # next level button / 下一关按钮
+    nw: int = 180
+    nh: int = 44
+    nx: int = SW // 2 - nw // 2
+    ny: int = SH // 2 + 15
+    next_btn: pygame.Rect = pygame.Rect(nx, ny, nw, nh)
+    hover: bool = next_btn.collidepoint(mx, my)
+    btn_color: Tuple[int, int, int] = BTN_HOVER if hover else BTN_NORMAL
+    pygame.draw.rect(screen, btn_color, next_btn, border_radius=8)
+    nt: pygame.Surface = small_font.render(t('next'), True, BTN_TEXT)
     screen.blit(nt, (nx + (nw - nt.get_width()) // 2, ny + (nh - nt.get_height()) // 2))
     return next_btn, hover
 
 
-def game_loop(screen, font, small_font):
-    """游戏主循环"""
-    global LANG
-    clock = pygame.time.Clock()
-    level = 1; selected_idx = None; won = False
-    bottles = generate_puzzle()
+# ==================== Game Loop / 游戏主循环 ====================
 
-    next_btn = None
-    running = True
+def game_loop(screen: pygame.Surface, font: pygame.font.Font,
+              small_font: pygame.font.Font) -> str:
+    """Main game loop / 游戏主循环"""
+    global LANG
+    clock: pygame.time.Clock = pygame.time.Clock()
+    level: int = 1
+    selected_idx: Optional[int] = None
+    won: bool = False
+    bottles: List[Bottle] = generate_puzzle()
+    next_btn: Optional[pygame.Rect] = None
+
+    running: bool = True
     while running:
+        mx: int
+        my: int
         mx, my = pygame.mouse.get_pos()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -516,37 +460,51 @@ def game_loop(screen, font, small_font):
                     LANG = 'en' if LANG == 'zh' else 'zh'
                 elif event.scancode == SC_R:
                     bottles = generate_puzzle()
-                    selected_idx = None; won = False
+                    selected_idx = None
+                    won = False
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if won and next_btn and next_btn.collidepoint(mx, my):
                     level += 1
                     bottles = generate_puzzle()
-                    selected_idx = None; won = False
+                    selected_idx = None
+                    won = False
                     continue
 
                 if won:
                     continue
-                mx, my = event.pos
-                clicked = None
+
+                # detect which bottle was clicked / 检测点击了哪个瓶子
+                clicked: Optional[int] = None
                 for i in range(BOTTLE_COUNT):
-                    row, col = i // 4, i % 4
-                    x, y = 55 + col * 192, ROW1_Y if row == 0 else ROW2_Y
+                    row: int = i // 4
+                    col: int = i % 4
+                    x: int = 55 + col * 192
+                    y: int = ROW1_Y if row == 0 else ROW2_Y
                     if pygame.Rect(x, y, BOTTLE_W, BODY_H + NECK_H + 2).collidepoint(mx, my):
-                        clicked = i; break
+                        clicked = i
+                        break
 
                 if clicked is not None:
                     if selected_idx is None:
+                        # select bottle / 选择瓶子
                         if bottles[clicked]:
                             selected_idx = clicked
                     elif selected_idx == clicked:
+                        # deselect / 取消选择
                         selected_idx = None
                     else:
-                        src, dst = selected_idx, clicked
+                        # attempt pour / 尝试倒酒
+                        src: int = selected_idx
+                        dst: int = clicked
+                        st: Optional[int]
+                        sc: int
                         st, sc, _ = get_top_info(bottles[src])
+                        dt: Optional[int]
+                        de: int
                         dt, _, de = get_top_info(bottles[dst])
                         if st is not None and de > 0 and (dt is None or dt == st):
-                            pour = min(sc, de)
+                            pour: int = min(sc, de)
                             del bottles[src][-pour:]
                             bottles[dst].extend([st] * pour)
                             if is_solved(bottles):
@@ -554,7 +512,6 @@ def game_loop(screen, font, small_font):
                         selected_idx = None
 
         draw_ui(screen, bottles, selected_idx, level, font, small_font)
-
         if won:
             next_btn, _ = draw_win_overlay(screen, font, small_font, level, mx, my)
         pygame.display.flip()
@@ -562,20 +519,21 @@ def game_loop(screen, font, small_font):
     return 'quit'
 
 
-# ==================== 入口 ====================
+# ==================== Entry Point / 入口 ====================
 
-def main():
+def main() -> None:
+    """Application entry point / 程序入口"""
     global LANG
     pygame.init()
-    screen = pygame.display.set_mode((SW, SH))
+    screen: pygame.Surface = pygame.display.set_mode((SW, SH))
     pygame.display.set_caption('Water Sort Puzzle')
 
-    font_path = 'C:/Windows/Fonts/msyh.ttc'
-    font = pygame.font.Font(font_path, 20)
-    big_font = pygame.font.Font(font_path, 28)
-    small_font = pygame.font.Font(font_path, 17)
+    font_path: str = 'C:/Windows/Fonts/msyh.ttc'
+    font: pygame.font.Font = pygame.font.Font(font_path, 20)
+    big_font: pygame.font.Font = pygame.font.Font(font_path, 28)
+    small_font: pygame.font.Font = pygame.font.Font(font_path, 17)
 
-    page = 'menu'
+    page: str = 'menu'
     while page != 'quit':
         if page == 'menu':
             page = start_page(screen, font, big_font)
